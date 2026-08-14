@@ -93,6 +93,7 @@ class Program
         Console.WriteLine(
             "Insertando 15 productos dinamicamente..."
         );
+
         Console.WriteLine();
 
         foreach (Producto producto in productos)
@@ -173,6 +174,7 @@ class Program
         Console.WriteLine(
             "CATALOGO DESPUES DE LA ACTUALIZACION Y ELIMINACION"
         );
+
         Console.WriteLine("----------------------------------------");
 
         inventario.MostrarProductos();
@@ -193,6 +195,19 @@ class Program
         Console.WriteLine("----------------------------------------");
 
         auditoria.ImprimirHistorialInverso();
+
+        Console.WriteLine();
+        Console.WriteLine("VALIDACION DE INTEGRIDAD");
+        Console.WriteLine("----------------------------------------");
+
+        Console.WriteLine(
+            $"Total de registros: {auditoria.TotalRegistros}"
+        );
+
+        Console.WriteLine(
+            $"Integridad de la lista: " +
+            $"{(auditoria.ValidarIntegridad() ? "CORRECTA" : "INCORRECTA")}"
+        );
     }
 
     static Producto CrearProducto(
@@ -212,6 +227,7 @@ class Program
             DatosProveedor = new Proveedor
             {
                 IdProveedor = idProveedor,
+
                 NombreCorporativo =
                     $"Proveedor {idProveedor}"
             }
@@ -223,7 +239,8 @@ class Program
         Producto[] productos =
             new Producto[cantidad];
 
-        Random random = new Random(42);
+        Random random =
+            new Random(42);
 
         for (int i = 0; i < cantidad; i++)
         {
@@ -244,14 +261,15 @@ class Program
                 Stock =
                     random.Next(0, 501),
 
-                DatosProveedor = new Proveedor
-                {
-                    IdProveedor =
-                        (i % 5) + 1,
+                DatosProveedor =
+                    new Proveedor
+                    {
+                        IdProveedor =
+                            (i % 5) + 1,
 
-                    NombreCorporativo =
-                        $"Proveedor {(i % 5) + 1}"
-                }
+                        NombreCorporativo =
+                            $"Proveedor {(i % 5) + 1}"
+                    }
             };
         }
 
