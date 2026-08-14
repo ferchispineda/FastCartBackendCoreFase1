@@ -5,16 +5,20 @@ using FastCartBackendCore;
 public class InventarioLista
 {
     private NodoProducto? _cabeza;
-
-    // Servicio de auditoría de la Fase 3
     private readonly AuditoriaService _auditoria;
 
     /// <summary>
     /// Inicializa una nueva lista de inventario vacía
     /// y recibe el servicio de auditoría.
     /// </summary>
+    /// <param name="auditoria">Servicio encargado de registrar los movimientos.</param>
+    /// <exception cref="ArgumentNullException">
+    /// Se genera cuando el servicio de auditoría es nulo.
+    /// </exception>
     public InventarioLista(AuditoriaService auditoria)
     {
+        ArgumentNullException.ThrowIfNull(auditoria);
+
         _cabeza = null;
         _auditoria = auditoria;
     }
@@ -22,6 +26,7 @@ public class InventarioLista
     /// <summary>
     /// Inserta un producto al inicio de la lista.
     /// </summary>
+    /// <param name="producto">Producto que se agregará al inventario.</param>
     public void InsertarInicio(Producto producto)
     {
         NodoProducto nuevo = new NodoProducto(producto);
@@ -29,7 +34,6 @@ public class InventarioLista
         nuevo.Siguiente = _cabeza;
         _cabeza = nuevo;
 
-        // Registrar operación en la bitácora
         _auditoria.RegistrarEvento(
             "INSERCION",
             producto.SKU,
@@ -41,6 +45,7 @@ public class InventarioLista
     /// Inserta un producto manteniendo la lista ordenada
     /// de forma ascendente por precio.
     /// </summary>
+    /// <param name="producto">Producto que se agregará al inventario.</param>
     public void InsertarOrdenado(Producto producto)
     {
         NodoProducto nuevo = new NodoProducto(producto);
@@ -81,6 +86,11 @@ public class InventarioLista
     /// <summary>
     /// Busca un producto mediante su SKU.
     /// </summary>
+    /// <param name="sku">SKU del producto que se desea localizar.</param>
+    /// <returns>Producto correspondiente al SKU indicado.</returns>
+    /// <exception cref="KeyNotFoundException">
+    /// Se genera cuando el SKU no existe en el inventario.
+    /// </exception>
     public Producto BuscarPorSKU(int sku)
     {
         NodoProducto? actual = _cabeza;
@@ -101,8 +111,51 @@ public class InventarioLista
     }
 
     /// <summary>
+    /// Actualiza el precio de un producto mediante su SKU.
+    /// </summary>
+    /// <param name="sku">SKU del producto que se actualizará.</param>
+    /// <param name="nuevoPrecio">Nuevo precio del producto.</param>
+    /// <exception cref="KeyNotFoundException">
+    /// Se genera cuando el SKU no existe en el inventario.
+    /// </exception>
+    public void ActualizarPrecio(int sku, double nuevoPrecio)
+    {
+        NodoProducto? actual = _cabeza;
+
+        while (actual != null)
+        {
+            if (actual.Data.SKU == sku)
+            {
+                Producto producto = actual.Data;
+
+                double precioAnterior = producto.Precio;
+
+                producto.Precio = nuevoPrecio;
+
+                actual.Data = producto;
+
+                _auditoria.RegistrarEvento(
+                    "ACTUALIZACION",
+                    sku,
+                    $"Precio de '{producto.Nombre}' actualizado de " +
+                    $"${precioAnterior:F2} a ${nuevoPrecio:F2}."
+                );
+
+                return;
+            }
+
+            actual = actual.Siguiente;
+        }
+
+        throw new KeyNotFoundException(
+            $"SKU {sku} no encontrado."
+        );
+    }
+
+    /// <summary>
     /// Elimina un producto del inventario mediante su SKU.
     /// </summary>
+    /// <param name="sku">SKU del producto que se desea eliminar.</param>
     public void EliminarPorSKU(int sku)
     {
         if (_cabeza == null)

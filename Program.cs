@@ -35,6 +35,7 @@ class Program
 
         Console.WriteLine("PRIMEROS 5 PRODUCTOS ANTES DEL ORDENAMIENTO");
         Console.WriteLine("--------------------------------------------");
+
         MostrarPrimerosCinco(catalogo);
 
         Stopwatch sw = Stopwatch.StartNew();
@@ -46,24 +47,29 @@ class Program
         Console.WriteLine();
         Console.WriteLine("PRIMEROS 5 PRODUCTOS DESPUES DEL SHELLSORT");
         Console.WriteLine("--------------------------------------------");
+
         MostrarPrimerosCinco(catalogo);
 
         Console.WriteLine();
         Console.WriteLine("RESULTADOS DE RENDIMIENTO");
         Console.WriteLine("--------------------------------------------");
+
         Console.WriteLine($"Tiempo: {sw.ElapsedMilliseconds} ms");
-        Console.WriteLine($"Microsegundos: {sw.Elapsed.TotalMicroseconds:F2} us");
+        Console.WriteLine(
+            $"Microsegundos: {sw.Elapsed.TotalMicroseconds:F2} us"
+        );
         Console.WriteLine($"Ticks: {sw.ElapsedTicks}");
-        Console.WriteLine($"Total de productos procesados: {catalogo.Length}");
+        Console.WriteLine(
+            $"Total de productos procesados: {catalogo.Length}"
+        );
     }
 
     static void EjecutarFase2()
     {
-        // FASE 3: Se crea el servicio de auditoría
         AuditoriaService auditoria = new AuditoriaService();
 
-        // Se inyecta la auditoría en el inventario
-        InventarioLista inventario = new InventarioLista(auditoria);
+        InventarioLista inventario =
+            new InventarioLista(auditoria);
 
         Producto[] productos =
         {
@@ -84,7 +90,9 @@ class Program
             CrearProducto(2015, "Microfono", 2100.00, 11, 5)
         };
 
-        Console.WriteLine("Insertando 15 productos dinamicamente...");
+        Console.WriteLine(
+            "Insertando 15 productos dinamicamente..."
+        );
         Console.WriteLine();
 
         foreach (Producto producto in productos)
@@ -109,7 +117,8 @@ class Program
 
         try
         {
-            Producto encontrado = inventario.BuscarPorSKU(2008);
+            Producto encontrado =
+                inventario.BuscarPorSKU(2008);
 
             Console.WriteLine(
                 $"Producto encontrado: {encontrado.Nombre} " +
@@ -131,8 +140,24 @@ class Program
         }
         catch (KeyNotFoundException ex)
         {
-            Console.WriteLine($"Excepcion controlada: {ex.Message}");
+            Console.WriteLine(
+                $"Excepcion controlada: {ex.Message}"
+            );
         }
+
+        Console.WriteLine();
+        Console.WriteLine("PRUEBA DE ACTUALIZACION");
+        Console.WriteLine("----------------------------------------");
+
+        inventario.ActualizarPrecio(2008, 1750.00);
+
+        Producto actualizado =
+            inventario.BuscarPorSKU(2008);
+
+        Console.WriteLine(
+            $"Nuevo precio del producto {actualizado.Nombre}: " +
+            $"${actualizado.Precio:F2}"
+        );
 
         Console.WriteLine();
         Console.WriteLine("PRUEBA DE ELIMINACION");
@@ -140,17 +165,17 @@ class Program
 
         inventario.EliminarPorSKU(2005);
 
-        Console.WriteLine("Producto SKU 2005 eliminado.");
+        Console.WriteLine(
+            "Producto SKU 2005 eliminado."
+        );
 
         Console.WriteLine();
-        Console.WriteLine("CATALOGO DESPUES DE LA ELIMINACION");
+        Console.WriteLine(
+            "CATALOGO DESPUES DE LA ACTUALIZACION Y ELIMINACION"
+        );
         Console.WriteLine("----------------------------------------");
 
         inventario.MostrarProductos();
-
-        // ========================================
-        // FASE 3 - AUDITORIA
-        // ========================================
 
         Console.WriteLine();
         Console.WriteLine("========================================");
@@ -187,14 +212,16 @@ class Program
             DatosProveedor = new Proveedor
             {
                 IdProveedor = idProveedor,
-                NombreCorporativo = $"Proveedor {idProveedor}"
+                NombreCorporativo =
+                    $"Proveedor {idProveedor}"
             }
         };
     }
 
     static Producto[] GenerarCatalogo(int cantidad)
     {
-        Producto[] productos = new Producto[cantidad];
+        Producto[] productos =
+            new Producto[cantidad];
 
         Random random = new Random(42);
 
@@ -203,19 +230,27 @@ class Program
             productos[i] = new Producto
             {
                 SKU = 1001 + i,
-                Nombre = $"Producto {i + 1}",
+
+                Nombre =
+                    $"Producto {i + 1}",
 
                 Precio = Math.Round(
-                    10 + random.NextDouble() * (9999.99 - 10),
+                    10 +
+                    random.NextDouble() *
+                    (9999.99 - 10),
                     2
                 ),
 
-                Stock = random.Next(0, 501),
+                Stock =
+                    random.Next(0, 501),
 
                 DatosProveedor = new Proveedor
                 {
-                    IdProveedor = (i % 5) + 1,
-                    NombreCorporativo = $"Proveedor {(i % 5) + 1}"
+                    IdProveedor =
+                        (i % 5) + 1,
+
+                    NombreCorporativo =
+                        $"Proveedor {(i % 5) + 1}"
                 }
             };
         }
@@ -227,17 +262,24 @@ class Program
         return productos;
     }
 
-    static void MostrarPrimerosCinco(Producto[] catalogo)
+    static void MostrarPrimerosCinco(
+        Producto[] catalogo)
     {
         Console.WriteLine(
-            $"{"SKU",-8} {"NOMBRE",-18} {"PRECIO",-14} {"STOCK",-8} {"PROVEEDOR",-15}"
+            $"{"SKU",-8} " +
+            $"{"NOMBRE",-18} " +
+            $"{"PRECIO",-14} " +
+            $"{"STOCK",-8} " +
+            $"{"PROVEEDOR",-15}"
         );
 
-        int limite = Math.Min(5, catalogo.Length);
+        int limite =
+            Math.Min(5, catalogo.Length);
 
         for (int i = 0; i < limite; i++)
         {
-            Producto producto = catalogo[i];
+            Producto producto =
+                catalogo[i];
 
             Console.WriteLine(
                 $"{producto.SKU,-8} " +
