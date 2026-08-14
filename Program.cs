@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using FastCartBackendCore;
 
 class Program
 {
@@ -58,7 +59,11 @@ class Program
 
     static void EjecutarFase2()
     {
-        InventarioLista inventario = new InventarioLista();
+        // FASE 3: Se crea el servicio de auditoría
+        AuditoriaService auditoria = new AuditoriaService();
+
+        // Se inyecta la auditoría en el inventario
+        InventarioLista inventario = new InventarioLista(auditoria);
 
         Producto[] productos =
         {
@@ -88,7 +93,8 @@ class Program
 
             Console.WriteLine(
                 $"Insertado: SKU {producto.SKU} - " +
-                $"{producto.Nombre} - ${producto.Precio:F2}");
+                $"{producto.Nombre} - ${producto.Precio:F2}"
+            );
         }
 
         Console.WriteLine();
@@ -107,7 +113,8 @@ class Program
 
             Console.WriteLine(
                 $"Producto encontrado: {encontrado.Nombre} " +
-                $"- ${encontrado.Precio:F2}");
+                $"- ${encontrado.Precio:F2}"
+            );
         }
         catch (KeyNotFoundException ex)
         {
@@ -134,11 +141,33 @@ class Program
         inventario.EliminarPorSKU(2005);
 
         Console.WriteLine("Producto SKU 2005 eliminado.");
+
         Console.WriteLine();
         Console.WriteLine("CATALOGO DESPUES DE LA ELIMINACION");
         Console.WriteLine("----------------------------------------");
 
         inventario.MostrarProductos();
+
+        // ========================================
+        // FASE 3 - AUDITORIA
+        // ========================================
+
+        Console.WriteLine();
+        Console.WriteLine("========================================");
+        Console.WriteLine("   FASE 3 - BITACORA DE AUDITORIA");
+        Console.WriteLine("========================================");
+
+        Console.WriteLine();
+        Console.WriteLine("RECORRIDO CRONOLOGICO");
+        Console.WriteLine("----------------------------------------");
+
+        auditoria.ImprimirHistorialCronologico();
+
+        Console.WriteLine();
+        Console.WriteLine("RECORRIDO INVERSO");
+        Console.WriteLine("----------------------------------------");
+
+        auditoria.ImprimirHistorialInverso();
     }
 
     static Producto CrearProducto(

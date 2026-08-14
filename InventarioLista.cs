@@ -1,43 +1,62 @@
 using System;
 using System.Collections.Generic;
+using FastCartBackendCore;
 
 public class InventarioLista
 {
     private NodoProducto? _cabeza;
 
+    // Servicio de auditoría de la Fase 3
+    private readonly AuditoriaService _auditoria;
+
     /// <summary>
-    /// Inicializa una nueva lista de inventario vacía.
+    /// Inicializa una nueva lista de inventario vacía
+    /// y recibe el servicio de auditoría.
     /// </summary>
-    public InventarioLista()
+    public InventarioLista(AuditoriaService auditoria)
     {
         _cabeza = null;
+        _auditoria = auditoria;
     }
 
     /// <summary>
     /// Inserta un producto al inicio de la lista.
     /// </summary>
-    /// <param name="producto">Producto que se agregará al inventario.</param>
     public void InsertarInicio(Producto producto)
     {
         NodoProducto nuevo = new NodoProducto(producto);
 
         nuevo.Siguiente = _cabeza;
         _cabeza = nuevo;
+
+        // Registrar operación en la bitácora
+        _auditoria.RegistrarEvento(
+            "INSERCION",
+            producto.SKU,
+            $"Producto '{producto.Nombre}' agregado al inicio del inventario."
+        );
     }
 
     /// <summary>
     /// Inserta un producto manteniendo la lista ordenada
     /// de forma ascendente por precio.
     /// </summary>
-    /// <param name="producto">Producto que se agregará al inventario.</param>
     public void InsertarOrdenado(Producto producto)
     {
         NodoProducto nuevo = new NodoProducto(producto);
 
-        if (_cabeza == null || producto.Precio < _cabeza.Data.Precio)
+        if (_cabeza == null ||
+            producto.Precio < _cabeza.Data.Precio)
         {
             nuevo.Siguiente = _cabeza;
             _cabeza = nuevo;
+
+            _auditoria.RegistrarEvento(
+                "INSERCION",
+                producto.SKU,
+                $"Producto '{producto.Nombre}' agregado al inventario."
+            );
+
             return;
         }
 
@@ -51,16 +70,17 @@ public class InventarioLista
 
         nuevo.Siguiente = actual.Siguiente;
         actual.Siguiente = nuevo;
+
+        _auditoria.RegistrarEvento(
+            "INSERCION",
+            producto.SKU,
+            $"Producto '{producto.Nombre}' agregado al inventario."
+        );
     }
 
     /// <summary>
     /// Busca un producto mediante su SKU.
     /// </summary>
-    /// <param name="sku">SKU del producto que se desea localizar.</param>
-    /// <returns>Producto correspondiente al SKU indicado.</returns>
-    /// <exception cref="KeyNotFoundException">
-    /// Se genera cuando el SKU no existe en el inventario.
-    /// </exception>
     public Producto BuscarPorSKU(int sku)
     {
         NodoProducto? actual = _cabeza;
@@ -76,13 +96,13 @@ public class InventarioLista
         }
 
         throw new KeyNotFoundException(
-            $"SKU {sku} no encontrado.");
+            $"SKU {sku} no encontrado."
+        );
     }
 
     /// <summary>
     /// Elimina un producto del inventario mediante su SKU.
     /// </summary>
-    /// <param name="sku">SKU del producto que se desea eliminar.</param>
     public void EliminarPorSKU(int sku)
     {
         if (_cabeza == null)
@@ -92,7 +112,16 @@ public class InventarioLista
 
         if (_cabeza.Data.SKU == sku)
         {
+            string nombre = _cabeza.Data.Nombre;
+
             _cabeza = _cabeza.Siguiente;
+
+            _auditoria.RegistrarEvento(
+                "ELIMINACION",
+                sku,
+                $"Producto '{nombre}' eliminado del inventario."
+            );
+
             return;
         }
 
@@ -102,7 +131,18 @@ public class InventarioLista
         {
             if (anterior.Siguiente.Data.SKU == sku)
             {
-                anterior.Siguiente = anterior.Siguiente.Siguiente;
+                string nombre =
+                    anterior.Siguiente.Data.Nombre;
+
+                anterior.Siguiente =
+                    anterior.Siguiente.Siguiente;
+
+                _auditoria.RegistrarEvento(
+                    "ELIMINACION",
+                    sku,
+                    $"Producto '{nombre}' eliminado del inventario."
+                );
+
                 return;
             }
 
@@ -123,7 +163,8 @@ public class InventarioLista
                 $"SKU: {actual.Data.SKU} | " +
                 $"Nombre: {actual.Data.Nombre} | " +
                 $"Precio: ${actual.Data.Precio:F2} | " +
-                $"Stock: {actual.Data.Stock}");
+                $"Stock: {actual.Data.Stock}"
+            );
 
             actual = actual.Siguiente;
         }
