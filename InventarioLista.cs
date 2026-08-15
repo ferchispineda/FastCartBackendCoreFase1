@@ -11,10 +11,9 @@ public class InventarioLista
     /// Inicializa una nueva lista de inventario vacía
     /// y recibe el servicio de auditoría.
     /// </summary>
-    /// <param name="auditoria">Servicio encargado de registrar los movimientos.</param>
-    /// <exception cref="ArgumentNullException">
-    /// Se genera cuando el servicio de auditoría es nulo.
-    /// </exception>
+    /// <param name="auditoria">
+    /// Servicio encargado de registrar los movimientos.
+    /// </param>
     public InventarioLista(AuditoriaService auditoria)
     {
         ArgumentNullException.ThrowIfNull(auditoria);
@@ -26,7 +25,6 @@ public class InventarioLista
     /// <summary>
     /// Inserta un producto al inicio de la lista.
     /// </summary>
-    /// <param name="producto">Producto que se agregará al inventario.</param>
     public void InsertarInicio(Producto producto)
     {
         NodoProducto nuevo = new NodoProducto(producto);
@@ -42,10 +40,9 @@ public class InventarioLista
     }
 
     /// <summary>
-    /// Inserta un producto manteniendo la lista ordenada
-    /// de forma ascendente por precio.
+    /// Inserta un producto manteniendo la lista
+    /// ordenada de forma ascendente por precio.
     /// </summary>
-    /// <param name="producto">Producto que se agregará al inventario.</param>
     public void InsertarOrdenado(Producto producto)
     {
         NodoProducto nuevo = new NodoProducto(producto);
@@ -86,11 +83,6 @@ public class InventarioLista
     /// <summary>
     /// Busca un producto mediante su SKU.
     /// </summary>
-    /// <param name="sku">SKU del producto que se desea localizar.</param>
-    /// <returns>Producto correspondiente al SKU indicado.</returns>
-    /// <exception cref="KeyNotFoundException">
-    /// Se genera cuando el SKU no existe en el inventario.
-    /// </exception>
     public Producto BuscarPorSKU(int sku)
     {
         NodoProducto? actual = _cabeza;
@@ -113,12 +105,9 @@ public class InventarioLista
     /// <summary>
     /// Actualiza el precio de un producto mediante su SKU.
     /// </summary>
-    /// <param name="sku">SKU del producto que se actualizará.</param>
-    /// <param name="nuevoPrecio">Nuevo precio del producto.</param>
-    /// <exception cref="KeyNotFoundException">
-    /// Se genera cuando el SKU no existe en el inventario.
-    /// </exception>
-    public void ActualizarPrecio(int sku, double nuevoPrecio)
+    public void ActualizarPrecio(
+        int sku,
+        double nuevoPrecio)
     {
         NodoProducto? actual = _cabeza;
 
@@ -155,7 +144,6 @@ public class InventarioLista
     /// <summary>
     /// Elimina un producto del inventario mediante su SKU.
     /// </summary>
-    /// <param name="sku">SKU del producto que se desea eliminar.</param>
     public void EliminarPorSKU(int sku)
     {
         if (_cabeza == null)
@@ -204,11 +192,128 @@ public class InventarioLista
     }
 
     /// <summary>
-    /// Muestra todos los productos almacenados en la lista.
+    /// Disminuye el stock real de un producto.
+    /// Este método será utilizado por la cola
+    /// de despacho de la Fase 4.
+    /// </summary>
+    public void DisminuirStock(
+        int sku,
+        int cantidad)
+    {
+        if (cantidad <= 0)
+        {
+            throw new ArgumentException(
+                "La cantidad debe ser mayor que cero."
+            );
+        }
+
+        NodoProducto? actual = _cabeza;
+
+        while (actual != null)
+        {
+            if (actual.Data.SKU == sku)
+            {
+                Producto producto = actual.Data;
+
+                if (producto.Stock < cantidad)
+                {
+                    throw new InvalidOperationException(
+                        $"Stock insuficiente para SKU {sku}. " +
+                        $"Disponible: {producto.Stock}, " +
+                        $"solicitado: {cantidad}."
+                    );
+                }
+
+                producto.Stock -= cantidad;
+
+                // Se guarda nuevamente el struct
+                // dentro del nodo.
+                actual.Data = producto;
+
+                _auditoria.RegistrarEvento(
+                    "DESPACHO",
+                    sku,
+                    $"Se descontaron {cantidad} unidades de " +
+                    $"'{producto.Nombre}'. " +
+                    $"Stock actual: {producto.Stock}."
+                );
+
+                return;
+            }
+
+            actual = actual.Siguiente;
+        }
+
+        throw new KeyNotFoundException(
+            $"SKU {sku} no encontrado."
+        );
+    }
+
+    /// <summary>
+    /// Incrementa el stock real de un producto.
+    /// Este método será utilizado por la pila
+    /// de devoluciones de la Fase 4.
+    /// </summary>
+    public void IncrementarStock(
+        int sku,
+        int cantidad)
+    {
+        if (cantidad <= 0)
+        {
+            throw new ArgumentException(
+                "La cantidad debe ser mayor que cero."
+            );
+        }
+
+        NodoProducto? actual = _cabeza;
+
+        while (actual != null)
+        {
+            if (actual.Data.SKU == sku)
+            {
+                Producto producto = actual.Data;
+
+                producto.Stock += cantidad;
+
+                // Se guarda nuevamente el struct
+                // dentro del nodo.
+                actual.Data = producto;
+
+                _auditoria.RegistrarEvento(
+                    "DEVOLUCION",
+                    sku,
+                    $"Se reintegraron {cantidad} unidades de " +
+                    $"'{producto.Nombre}'. " +
+                    $"Stock actual: {producto.Stock}."
+                );
+
+                return;
+            }
+
+            actual = actual.Siguiente;
+        }
+
+        throw new KeyNotFoundException(
+            $"SKU {sku} no encontrado."
+        );
+    }
+
+    /// <summary>
+    /// Muestra todos los productos almacenados
+    /// en la lista.
     /// </summary>
     public void MostrarProductos()
     {
         NodoProducto? actual = _cabeza;
+
+        if (actual == null)
+        {
+            Console.WriteLine(
+                "[Inventario vacío]"
+            );
+
+            return;
+        }
 
         while (actual != null)
         {
