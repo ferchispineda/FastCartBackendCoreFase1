@@ -2,7 +2,7 @@
 
 Proyecto desarrollado en C# para implementar y evolucionar el núcleo de procesamiento del catálogo de productos de FastCart.
 
-El proyecto está dividido en fases que permiten aplicar diferentes estructuras de datos y analizar su comportamiento en escenarios de inventario.
+El proyecto está dividido en fases que permiten aplicar diferentes estructuras de datos y analizar su comportamiento en escenarios de inventario, auditoría, despacho y devoluciones.
 
 ---
 
@@ -124,6 +124,18 @@ La operación también genera automáticamente un registro en la bitácora de au
 Localiza un producto por SKU y elimina su nodo mediante el reenlace de referencias.
 
 El nodo eliminado deja de formar parte de la cadena y posteriormente puede ser recuperado por el Garbage Collector de .NET.
+
+#### DisminuirStock
+
+Disminuye el stock real de un producto mediante su SKU.
+
+Este método es utilizado por la cola de despacho de la Fase 4.
+
+#### IncrementarStock
+
+Incrementa el stock real de un producto mediante su SKU.
+
+Este método es utilizado por la pila de devoluciones de la Fase 4.
 
 ### Pruebas de la Fase 2
 
@@ -281,6 +293,8 @@ Las siguientes operaciones generan automáticamente un registro:
 * `INSERCION`
 * `ACTUALIZACION`
 * `ELIMINACION`
+* `DESPACHO`
+* `DEVOLUCION`
 
 De esta manera, cada modificación realizada sobre el inventario queda registrada automáticamente en la bitácora.
 
@@ -288,19 +302,9 @@ De esta manera, cada modificación realizada sobre el inventario queda registrad
 
 La demostración utiliza 15 productos.
 
-Durante la ejecución se generan:
+Durante la ejecución inicial se generan eventos de inserción correspondientes a cada producto del catálogo.
 
-* 15 eventos de `INSERCION`.
-* 1 evento de `ACTUALIZACION`.
-* 1 evento de `ELIMINACION`.
-
-Total:
-
-```text
-17 eventos
-```
-
-Al finalizar se realizan dos recorridos:
+El historial puede visualizarse en dos sentidos:
 
 ```text
 Antiguo -> Reciente
@@ -312,12 +316,7 @@ y:
 Reciente -> Antiguo
 ```
 
-También se comprueba la integridad de la estructura:
-
-```text
-Total de registros: 17
-Integridad de la lista: CORRECTA
-```
+También se comprueba la integridad de la estructura mediante `ValidarIntegridad()`.
 
 ---
 
@@ -335,7 +334,7 @@ Se utiliza:
 * Microsoft.NET.Test.Sdk
 * coverlet.collector
 
-Se implementaron 6 pruebas unitarias:
+Se implementaron 6 pruebas unitarias para la Fase 3:
 
 1. Registro del primer evento en una lista vacía.
 2. Registro de múltiples eventos.
@@ -344,13 +343,276 @@ Se implementaron 6 pruebas unitarias:
 5. Validación de `ArgumentNullException` cuando no se proporciona `AuditoriaService`.
 6. Validación de integridad con múltiples nodos.
 
-Resultado esperado:
+---
+
+## Fase 4 — Motor de Despacho con Cola FIFO y Pila LIFO
+
+### Objetivo
+
+La Fase 4 integra un motor de despacho logístico utilizando estructuras dinámicas implementadas manualmente mediante nodos enlazados.
+
+Se implementaron dos estructuras principales:
+
+* Cola dinámica FIFO para gestionar pedidos.
+* Pila dinámica LIFO para gestionar devoluciones.
+
+Ambas estructuras se integran con `InventarioLista` y `AuditoriaService`, permitiendo modificar el stock real de los productos y registrar automáticamente los movimientos realizados.
+
+No se utilizan `Queue<T>`, `Stack<T>` ni LINQ para implementar las operaciones estructurales.
+
+### Pedido
+
+La clase `Pedido` representa la información almacenada dentro de la cola.
+
+Cada pedido contiene:
+
+* ID del pedido.
+* SKU.
+* Cantidad.
+* Cliente.
+* Fecha y hora de registro.
+
+### NodoCola
+
+La clase `NodoCola` representa cada elemento de la cola dinámica.
+
+Cada nodo contiene:
+
+* `Dato`: objeto de tipo `Pedido`.
+* `Siguiente`: referencia al siguiente nodo.
+
+Cuando `Siguiente` es `null`, el nodo representa el final de la cola.
+
+### ColaDespacho — FIFO
+
+La clase `ColaDespacho` administra los pedidos pendientes mediante dos referencias:
+
+* `Frente`: primer pedido pendiente.
+* `Fin`: último pedido agregado.
+
+La estructura fue implementada manualmente mediante nodos enlazados.
+
+### EncolarPedido
+
+El método:
+
+```csharp
+EncolarPedido()
+```
+
+inserta un nuevo pedido al final de la cola mediante el puntero `Fin`.
+
+Complejidad temporal:
 
 ```text
-Resumen de pruebas:
-total: 6
-con errores: 0
-correcto: 6
+O(1)
+```
+
+### DespacharPedido
+
+El método:
+
+```csharp
+DespacharPedido()
+```
+
+procesa el pedido ubicado en `Frente`, respetando el principio:
+
+```text
+FIFO — First In, First Out
+```
+
+Antes de retirar el nodo de la cola se actualiza el stock real mediante:
+
+```csharp
+InventarioLista.DisminuirStock()
+```
+
+Si el SKU no existe o no hay stock suficiente, se genera una excepción controlada y el pedido permanece en la cola.
+
+Cuando el despacho se realiza correctamente:
+
+* Se disminuye el stock.
+* Se elimina el nodo ubicado en `Frente`.
+* Se actualiza el puntero `Frente`.
+* Si la cola queda vacía, `Fin` también se establece en `null`.
+* Se registra el movimiento `DESPACHO` en la bitácora.
+
+---
+
+## Devolucion
+
+La clase `Devolucion` representa la información almacenada dentro de la pila.
+
+Cada devolución contiene:
+
+* ID de devolución.
+* SKU.
+* Cantidad.
+* Motivo.
+* Fecha y hora de registro.
+
+### NodoPila
+
+La clase `NodoPila` representa cada elemento de la pila dinámica.
+
+Cada nodo contiene:
+
+* `Dato`: objeto de tipo `Devolucion`.
+* `Siguiente`: referencia al nodo inferior de la pila.
+
+### PilaDevoluciones — LIFO
+
+La clase `PilaDevoluciones` administra las devoluciones mediante un único puntero:
+
+```text
+Top
+```
+
+La estructura fue implementada manualmente mediante nodos enlazados.
+
+### PushDevolucion
+
+El método:
+
+```csharp
+PushDevolucion()
+```
+
+inserta una devolución en la cima de la pila.
+
+Complejidad temporal:
+
+```text
+O(1)
+```
+
+### PopDevolucion
+
+El método:
+
+```csharp
+PopDevolucion()
+```
+
+procesa la devolución ubicada en `Top`, respetando el principio:
+
+```text
+LIFO — Last In, First Out
+```
+
+Al procesar una devolución, las unidades son reintegradas al inventario mediante:
+
+```csharp
+InventarioLista.IncrementarStock()
+```
+
+Cuando la devolución se procesa correctamente:
+
+* Se incrementa el stock.
+* Se elimina el nodo ubicado en `Top`.
+* `Top` avanza al siguiente nodo.
+* Se registra el movimiento `DEVOLUCION` en la bitácora.
+
+---
+
+## Integración de la Fase 4 con el inventario
+
+Para permitir que la cola y la pila modifiquen el inventario real se incorporaron los métodos:
+
+```csharp
+DisminuirStock()
+IncrementarStock()
+```
+
+`DisminuirStock()` se utiliza al despachar pedidos.
+
+`IncrementarStock()` se utiliza al procesar devoluciones.
+
+Debido a que `Producto` está implementado como `struct`, después de modificar el stock se asigna nuevamente el producto actualizado al nodo correspondiente.
+
+---
+
+## Integración de la Fase 4 con la bitácora
+
+Los movimientos logísticos generan automáticamente eventos de auditoría.
+
+Los nuevos tipos de operación son:
+
+```text
+DESPACHO
+DEVOLUCION
+```
+
+Esto permite conservar la trazabilidad de los cambios de stock realizados por la cola y la pila.
+
+---
+
+## Menú Maestro — Integración de las cuatro fases
+
+Se implementó un menú interactivo como punto de entrada único del sistema.
+
+El menú permite acceder a funcionalidades de las cuatro fases.
+
+### Fase 1
+
+```text
+[1] Ejecutar demostración ShellSort
+```
+
+### Fase 2
+
+```text
+[2] Agregar producto
+[3] Buscar producto por SKU
+[4] Eliminar producto
+[5] Mostrar catálogo
+```
+
+### Fase 3
+
+```text
+[6] Ver historial de bitácora
+[7] Validar integridad de bitácora
+```
+
+### Fase 4
+
+```text
+[8] Encolar nuevo pedido
+[9] Despachar pedido FIFO
+[10] Registrar devolución LIFO
+[11] Procesar devolución
+[12] Ver estado de cola y pila
+```
+
+### Salida
+
+```text
+[0] Salir
+```
+
+---
+
+## Pruebas Unitarias — Fase 4
+
+Se agregaron 7 pruebas automatizadas para verificar:
+
+1. Inserción de pedidos en la cola.
+2. Disminución real del stock durante un despacho.
+3. Orden FIFO de los pedidos.
+4. Inserción de devoluciones en la pila.
+5. Reintegración del stock durante una devolución.
+6. Orden LIFO de las devoluciones.
+7. Control de stock insuficiente durante un despacho.
+
+En conjunto con las 6 pruebas de la Fase 3, actualmente se ejecutan:
+
+```text
+Total: 13
+Correctas: 13
+Con errores: 0
+Omitidas: 0
 ```
 
 Para ejecutar las pruebas:
@@ -361,17 +623,58 @@ dotnet test .\Tests\FastCartBackendCore.Tests.csproj
 
 ---
 
+## Flujo de integración comprobado
+
+Durante las pruebas manuales se verificó el siguiente flujo:
+
+```text
+Stock inicial SKU 2001: 12
+
+Pedido:
+SKU: 2001
+Cantidad: 2
+
+Despacho FIFO:
+12 -> 10
+
+Devolución:
+SKU: 2001
+Cantidad: 2
+
+Procesamiento LIFO:
+10 -> 12
+```
+
+La bitácora registró correctamente:
+
+```text
+DESPACHO
+DEVOLUCION
+```
+
+Con esto se comprobó la integración entre:
+
+```text
+InventarioLista
+      ↓
+ColaDespacho / PilaDevoluciones
+      ↓
+AuditoriaService
+```
+
+---
+
 ## Comparación de estructuras utilizadas
 
-| Característica           | Arreglo — Fase 1     | Lista Simple — Fase 2 | Lista Doble — Fase 3   |
-| ------------------------ | -------------------- | --------------------- | ---------------------- |
-| Tamaño                   | Fijo                 | Dinámico              | Dinámico               |
-| Inserción al extremo     | Depende de capacidad | O(1) al inicio        | O(1) en cola           |
-| Búsqueda                 | O(n)                 | O(n)                  | O(n)                   |
-| Recorrido hacia adelante | Sí                   | Sí                    | Sí                     |
-| Recorrido hacia atrás    | No directamente      | No                    | Sí                     |
-| Memoria adicional        | Baja                 | 1 referencia por nodo | 2 referencias por nodo |
-| Uso principal            | Ordenamiento         | Inventario            | Auditoría              |
+| Característica           | Arreglo — Fase 1     | Lista Simple — Fase 2 | Lista Doble — Fase 3   | Cola / Pila — Fase 4     |
+| ------------------------ | -------------------- | --------------------- | ---------------------- | ------------------------ |
+| Tamaño                   | Fijo                 | Dinámico              | Dinámico               | Dinámico                 |
+| Inserción                | Depende de capacidad | O(1) al inicio        | O(1) en cola           | O(1)                     |
+| Búsqueda                 | O(n)                 | O(n)                  | O(n)                   | Depende del inventario   |
+| Recorrido hacia adelante | Sí                   | Sí                    | Sí                     | Sí                       |
+| Recorrido hacia atrás    | No directamente      | No                    | Sí                     | No                       |
+| Memoria adicional        | Baja                 | 1 referencia por nodo | 2 referencias por nodo | 1 referencia por nodo    |
+| Uso principal            | Ordenamiento         | Inventario            | Auditoría              | Despachos y devoluciones |
 
 ---
 
@@ -414,8 +717,11 @@ dotnet test .\Tests\FastCartBackendCore.Tests.csproj
 * C#
 * .NET 10
 * ShellSort
+* Arreglos
 * Listas simplemente enlazadas
 * Listas doblemente enlazadas
+* Cola dinámica FIFO
+* Pila dinámica LIFO
 * xUnit
 * Inyección de dependencias
 * Git
@@ -431,29 +737,71 @@ El desarrollo se organiza mediante ramas independientes:
 * `proyecto/fase1-shellsort`
 * `proyecto/fase2-listas`
 * `proyecto/fase3-bitacora`
+* `proyecto/fase4-pilas-colas`
 
-La Fase 3 utiliza Conventional Commits para documentar la evolución del proyecto.
+Las fases utilizan commits incrementales para documentar la evolución del proyecto.
 
-Entre los tipos de commits utilizados se encuentran:
+Entre los tipos de Conventional Commits utilizados se encuentran:
 
 ```text
 feat
 test
 docs
+fix
+refactor
 ```
 
-La rama `proyecto/fase3-bitacora` se integra a la rama principal mediante Pull Request después de verificar compilación, pruebas y documentación.
+La Fase 4 incluye commits separados para:
+
+* Actualización del stock.
+* Implementación de la cola FIFO.
+* Implementación de la pila LIFO.
+* Integración del menú maestro.
+* Pruebas automatizadas.
+* Documentación.
+
+La rama `proyecto/fase4-pilas-colas` será integrada a `main` mediante Pull Request después de verificar compilación, pruebas y documentación.
 
 ---
 
-## Estado de la Fase 3
+## Estado actual del proyecto
 
 La implementación actual permite:
 
+* Ordenar productos mediante ShellSort.
+* Administrar un inventario mediante una lista simplemente enlazada.
+* Buscar productos mediante SKU.
+* Actualizar productos.
+* Eliminar productos.
 * Registrar automáticamente cambios del inventario.
-* Navegar el historial en ambas direcciones.
+* Navegar el historial de auditoría en ambas direcciones.
 * Mantener el conteo total de eventos.
-* Validar la integridad de los punteros.
-* Controlar dependencias nulas.
-* Ejecutar pruebas unitarias automatizadas.
-* Mantener encapsulada la estructura interna de auditoría.
+* Validar la integridad de los punteros de la bitácora.
+* Gestionar pedidos mediante una cola FIFO dinámica.
+* Gestionar devoluciones mediante una pila LIFO dinámica.
+* Disminuir stock automáticamente durante los despachos.
+* Reintegrar stock automáticamente durante las devoluciones.
+* Registrar despachos y devoluciones en la bitácora.
+* Ejecutar las cuatro fases desde un menú maestro.
+* Controlar errores por SKU inexistente.
+* Controlar errores por stock insuficiente.
+* Ejecutar 13 pruebas automatizadas correctamente.
+* Mantener un historial de desarrollo mediante Git y GitHub.
+
+---
+
+## Resultado de validación actual
+
+La ejecución de las pruebas automatizadas produjo:
+
+```text
+Resumen de pruebas:
+total: 13
+con errores: 0
+correcto: 13
+omitido: 0
+```
+
+La compilación del proyecto también finalizó correctamente.
+
+Por lo tanto, la integración funcional de las cuatro fases se encuentra operativa.
